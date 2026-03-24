@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RSS Reader 管理后台</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 1000px; margin: 20px auto; padding: 0 16px; color: #222; }
+    h1 { margin-bottom: 8px; }
+    .desc { color: #666; margin-bottom: 16px; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+    .row { display: flex; gap: 10px; margin: 10px 0; flex-wrap: wrap; align-items: center; }
+    .row input[type="text"], .row input[type="number"], textarea { padding: 8px; border: 1px solid #ccc; border-radius: 6px; }
+    input[type="text"], input[type="number"] { min-width: 220px; }
+    button { padding: 8px 14px; cursor: pointer; border: 1px solid #bbb; background: #f7f7f7; border-radius: 6px; }
+    button:hover { background: #efefef; }
+    .source-item { display: flex; gap: 10px; margin: 8px 0; }
+    .source-item input { flex: 1; min-width: 300px; }
+    textarea { width: 100%; min-height: 220px; font-family: Consolas, monospace; font-size: 13px; }
+    .ok { color: #1a7f37; }
+    .err { color: #b42318; }
+    .muted { color: #777; }
+    .log { font-size: 13px; max-height: 160px; overflow: auto; background: #fafafa; padding: 8px; border: 1px dashed #ddd; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <h1>RSS Reader 管理后台</h1>
+  <div class="desc">用于在线管理配置、测试单个源地址并保存到 <code>config.json</code>。</div>
+
+  <div class="card">
+    <div class="row">
+      <input id="token" type="text" placeholder="管理员 Token（必填）" />
+      <button id="saveTokenBtn">保存 Token</button>
+      <button id="loadBtn">加载配置</button>
+      <button id="saveBtn">保存配置</button>
+    </div>
+    <div id="msg" class="muted">请先输入 Token 再加载配置。</div>
+  </div>
+
+  <div class="card">
+    <h3>基础配置</h3>
+    <div class="row">
+      <label>刷新间隔(分钟)</label>
+      <input id="refresh" type="number" min="1" />
+      <label>自动推送(分钟)</label>
+      <input id="autoUpdatePush" type="number" min="0" />
+    </div>
+    <div class="row">
+      <label>日间开始</label>
+      <input id="nightStartTime" type="text" placeholder="06:30:00" />
+      <label>日间结束</label>
+      <input id="nightEndTime" type="text" placeholder="19:30:00" />
+    </div>
+    <div class="row">
+      <label>关键词(逗号分隔)</label>
+      <input id="keywords" type="text" placeholder="telegram,ai,go" style="min-width: 420px;" />
+    </div>
+    <div class="row">
+      <label>归档文件</label>
+      <input id="archives" type="text" placeholder="archives.txt" style="min-width: 300px;" />
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>通知配置</h3>
+    <div class="row">
+      <label>Telegram API</label>
+      <input id="tgApi" type="text" placeholder="https://api.telegram.org/bot${token}/sendMessage" style="min-width: 500px;" />
+    </div>
+    <div class="row">
+      <label>Telegram Chat ID</label>
+      <input id="tgChatId" type="text" placeholder="-100xxxxxxxxxx" />
+      <label>Telegram Token</label>
+      <input id="tgToken" type="text" placeholder="xxxx:yyyy" style="min-width: 300px;" />
+    </div>
+    <div class="row">
+      <label>Feishu API</label>
+      <input id="feishuApi" type="text" placeholder="飞书 webhook 地址（可选）" style="min-width: 500px;" />
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>RSS 源管理</h3>
+    <div id="sources"></div>
+    <div class="row">
+      <button id="addSourceBtn">新增源</button>
+      <button id="testSourceBtn">测试当前输入源</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>JSON 预览/高级编辑</h3>
+    <textarea id="editor" placeholder="配置 JSON 会显示在这里..."></textarea>
+    <div class="row">
+      <button id="syncToJsonBtn">表单同步到 JSON</button>
+      <button id="syncFromJsonBtn">JSON 回填到表单</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>操作日志</h3>
+    <div id="log" class="log muted"></div>
+  </div>
+
+  <script>
+    const tokenInput = document.getElementById("token");
+    const msg = document.getElementById("msg");
+    const editor = document.getElementById("editor");
+    const logDom = document.getElementById("log");
+    const sourcesDom = document.getElementById("sources");
+    const refreshInput = document.getElementById("refresh");
+    const autoUpdatePushInput = document.getElementById("autoUpdatePush");
+    const nightStartTimeInput = document.getElementById("nightStartTime");
+    const nightEndTimeInput = document.getElementById("nightEndTime");
+    const keywordsInput = document.getElementById("keywords");
+    const archivesInput = document.getElementById("archives");
+    const tgApiInput = document.getElementById("tgApi");
+    const tgChatIdInput = document.getElementById("tgChatId");
+    const tgTokenInput = document.getElementById("tgToken");
+    const feishuApiInput = document.getElementById("feishuApi");
+
+    tokenInput.value = localStorage.getItem("rss_admin_token") || "";
+
+    const appendLog = (text, isError) => {
+      const t = new Date().toLocaleTimeString();
+      const line = document.createElement("div");
+      line.className = isError ? "err" : "muted";
+      line.textContent = "[" + t + "] " + text;
+      logDom.prepend(line);
+    };
+
+    const headers = () => {
+      const token = tokenInput.value.trim();
+      return {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + token
+      };
+    };
+
+    const setMsg = (text, ok) => {
+      msg.textContent = text;
+      msg.className = ok ? "ok" : "err";
+      appendLog(text, !ok);
+    };
+
+    const renderSources = (values) => {
+      sourcesDom.innerHTML = "";
+      (values || []).forEach((url) => addSourceRow(url));
+    };
+
+    const addSourceRow = (value) => {
+      const row = document.createElement("div");
+      row.className = "source-item";
+      const input = document.createElement("input");
+      input.type = "text";
+      input.placeholder = "https://example.com/rss";
+      input.value = value || "";
+      const delBtn = document.createElement("button");
+      delBtn.textContent = "删除";
+      delBtn.onclick = () => row.remove();
+      row.appendChild(input);
+      row.appendChild(delBtn);
+      sourcesDom.appendChild(row);
+    };
+
+    const collectForm = () => {
+      const values = Array.from(sourcesDom.querySelectorAll("input"))
+        .map((x) => x.value.trim())
+        .filter(Boolean);
+      const refresh = Number(refreshInput.value || 0);
+      const autoUpdatePush = Number(autoUpdatePushInput.value || 0);
+      const nightStartTime = nightStartTimeInput.value.trim();
+      const nightEndTime = nightEndTimeInput.value.trim();
+      const keywords = keywordsInput.value
+        .split(",")
+        .map((k) => k.trim())
+        .filter(Boolean);
+      const archives = archivesInput.value.trim();
+      const tgApi = tgApiInput.value.trim();
+      const tgChatId = tgChatIdInput.value.trim();
+      const tgToken = tgTokenInput.value.trim();
+      const feishuApi = feishuApiInput.value.trim();
+
+      if (values.length === 0) throw new Error("至少需要一个 RSS 源");
+      if (!Number.isInteger(refresh) || refresh <= 0) throw new Error("刷新间隔必须是大于0的整数");
+      if (!Number.isInteger(autoUpdatePush) || autoUpdatePush < 0) throw new Error("自动推送间隔必须是大于等于0的整数");
+      return {
+        values,
+        keywords,
+        refresh,
+        autoUpdatePush,
+        nightStartTime,
+        nightEndTime,
+        archives,
+        notify: {
+          feishu: { api: feishuApi },
+          telegram: {
+            api: tgApi,
+            chat_id: tgChatId,
+            token: tgToken
+          }
+        }
+      };
+    };
+
+    const fillForm = (data) => {
+      refreshInput.value = data.refresh || 6;
+      autoUpdatePushInput.value = data.autoUpdatePush || 0;
+      nightStartTimeInput.value = data.nightStartTime || "06:30:00";
+      nightEndTimeInput.value = data.nightEndTime || "19:30:00";
+      keywordsInput.value = (data.keywords || []).join(",");
+      archivesInput.value = data.archives || "";
+      tgApiInput.value = (data.notify && data.notify.telegram && data.notify.telegram.api) || "";
+      tgChatIdInput.value = (data.notify && data.notify.telegram && data.notify.telegram.chat_id) || "";
+      tgTokenInput.value = (data.notify && data.notify.telegram && data.notify.telegram.token) || "";
+      feishuApiInput.value = (data.notify && data.notify.feishu && data.notify.feishu.api) || "";
+      renderSources(data.values || []);
+    };
+
+    const syncToJson = () => {
+      const payload = collectForm();
+      editor.value = JSON.stringify(payload, null, 4);
+    };
+
+    const syncFromJson = () => {
+      const payload = JSON.parse(editor.value);
+      fillForm(payload);
+    };
+
+    document.getElementById("saveTokenBtn").onclick = () => {
+      localStorage.setItem("rss_admin_token", tokenInput.value.trim());
+      setMsg("Token 已保存到浏览器本地存储。", true);
+    };
+
+    document.getElementById("loadBtn").onclick = async () => {
+      try {
+        const resp = await fetch("/api/admin/config", { headers: headers() });
+        if (!resp.ok) throw new Error("加载失败，状态码: " + resp.status);
+        const json = await resp.json();
+        fillForm(json);
+        syncToJson();
+        setMsg("配置加载成功。", true);
+      } catch (e) {
+        setMsg(e.message, false);
+      }
+    };
+
+    document.getElementById("addSourceBtn").onclick = () => addSourceRow("");
+    document.getElementById("syncToJsonBtn").onclick = () => {
+      try { syncToJson(); setMsg("已同步到 JSON 预览。", true); } catch (e) { setMsg(e.message, false); }
+    };
+    document.getElementById("syncFromJsonBtn").onclick = () => {
+      try { syncFromJson(); setMsg("JSON 已回填到表单。", true); } catch (e) { setMsg(e.message, false); }
+    };
+
+    document.getElementById("testSourceBtn").onclick = async () => {
+      try {
+        const firstSource = Array.from(sourcesDom.querySelectorAll("input")).map((x) => x.value.trim()).find(Boolean);
+        if (!firstSource) throw new Error("请先输入至少一个源地址再测试");
+        const resp = await fetch("/api/admin/test-source", {
+          method: "POST",
+          headers: headers(),
+          body: JSON.stringify({ url: firstSource })
+        });
+        if (!resp.ok) {
+          const text = await resp.text();
+          throw new Error("测试失败: " + text);
+        }
+        const result = await resp.json();
+        setMsg("测试成功: " + (result.title || "无标题") + "，条目数 " + result.items, true);
+      } catch (e) {
+        setMsg(e.message, false);
+      }
+    };
+
+    document.getElementById("saveBtn").onclick = async () => {
+      try {
+        let payload;
+        try {
+          payload = collectForm();
+          editor.value = JSON.stringify(payload, null, 4);
+        } catch (_e) {
+          payload = JSON.parse(editor.value);
+          fillForm(payload);
+        }
+        const resp = await fetch("/api/admin/config", {
+          method: "PUT",
+          headers: headers(),
+          body: JSON.stringify(payload)
+        });
+        if (!resp.ok) {
+          const text = await resp.text();
+          throw new Error("保存失败: " + text);
+        }
+        setMsg("保存成功，配置已生效。", true);
+      } catch (e) {
+        setMsg(e.message, false);
+      }
+    };
+  </script>
+</body>
+</html>

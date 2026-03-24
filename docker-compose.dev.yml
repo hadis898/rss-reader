@@ -1,0 +1,17 @@
+version: "3"
+
+services:
+  server:
+    build: .
+    image: rss-reader:dev
+    container_name: rss-reader-dev
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      - DEV_STATIC_DIR=/app/static-dev
+      # 生产请用强随机token
+      - ADMIN_TOKEN=change-me-strong-token
+    volumes:
+      - "$PWD/config.json:/app/config.json"
+      - "$PWD/globals/static:/app/static-dev"

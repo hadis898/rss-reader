@@ -1,0 +1,33 @@
+{
+    "values": [
+        "https://blog.upx8.com/feed",
+        "https://www.ahhhhfs.com/feed",
+        "https://rss.nodeseek.com",
+        "https://linux.do/latest.rss",
+        "https://51.ruyo.net/feed",
+        "https://fuliba2024.net/feed",
+        "https://naiyous.com/feed",
+        "https://blog.cmliussss.com/atom.xml",
+        "https://appscross.com/feed",
+        "https://www.cheshirex.com/feed",
+        "https://www.notetoday.net/feed",
+        "https://www.freedidi.com/feed"
+    ],
+    "refresh": 2,
+    "autoUpdatePush": 7,
+    "nightStartTime": "06:30:00",
+    "nightEndTime": "19:30:00",
+    
+    "keywords": ["Claw","活动","白嫖","甲骨文","netcup","狐蒂","GCP"],
+    "notify" : {
+        "feishu": {
+            "api": ""
+        },
+        "telegram": {
+            "api": "https://api.telegram.org/bot${token}/sendMessage",
+            "chat_id":"输入你的ID",
+            "token": "输入你的token"
+        }
+    },
+    "archives": "archives.txt"
+}

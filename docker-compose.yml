@@ -1,0 +1,14 @@
+version: "3"
+
+services:
+  server:
+    build: .
+    image: rss-reader:local
+    container_name: rss-reader
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      - ADMIN_TOKEN=admin123456（输入你的密码）
+    volumes:
+      - "$PWD/config.json:/app/config.json"
