@@ -9,6 +9,6 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - ADMIN_TOKEN=admin123456（输入你的密码）
+      - ADMIN_TOKEN=admin123456
     volumes:
       - "$PWD/config.json:/app/config.json"
