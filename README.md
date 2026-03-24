@@ -35,28 +35,36 @@
 ```json
 {
     "values": [
-        "https://www.zhihu.com/rss",
-        "https://tech.meituan.com/feed/",
-        "http://www.ruanyifeng.com/blog/atom.xml",
-        "https://feeds.appinn.com/appinns/",
-        "https://v2ex.com/feed/tab/tech.xml",
-        "https://www.cmooc.com/feed",
-        "http://www.sciencenet.cn/xml/blog.aspx?di=30",
-        "https://www.douban.com/feed/review/book",
-        "https://www.douban.com/feed/review/movie",
-        "https://www.geekpark.net/rss",
-        "https://hostloc.com/forum.php?mod=rss&fid=45&auth=389ec3vtQanmEuRoghE%2FpZPWnYCPmvwWgSa7RsfjbQ%2BJpA%2F6y6eHAx%2FKqtmPOg"
+        "https://blog.upx8.com/feed",
+        "https://www.ahhhhfs.com/feed",
+        "https://rss.nodeseek.com",
+        "https://linux.do/latest.rss",
+        "https://51.ruyo.net/feed",
+        "https://fuliba2024.net/feed",
+        "https://naiyous.com/feed",
+        "https://blog.cmliussss.com/atom.xml",
+        "https://appscross.com/feed",
+        "https://www.cheshirex.com/feed",
+        "https://www.notetoday.net/feed",
+        "https://www.freedidi.com/feed"
     ],
-    "keywords": [
-        "telegram",
-        "ai",
-        "golang"
-    ],
-    "refresh": 6,
+    "refresh": 2,
     "autoUpdatePush": 7,
     "nightStartTime": "06:30:00",
     "nightEndTime": "19:30:00",
-    "adminToken": "change-me-strong-token"
+    
+    "keywords": ["Claw","活动","白嫖","甲骨文","netcup","狐蒂","GCP"],
+    "notify" : {
+        "feishu": {
+            "api": ""
+        },
+        "telegram": {
+            "api": "https://api.telegram.org/bot${token}/sendMessage",
+            "chat_id":"输入你的ID",
+            "token": "输入你的token"
+        }
+    },
+    "archives": "archives.txt"
 }
 ```
 
